@@ -1,0 +1,15 @@
+log.txt
+.pyc
+*.txt
+.vs
+.vscode
+__pycache__
+*.h5
+*.hdf5
+*.prof
+*.pstats
+*.json
+*.jpg
+*.csv
+data/*.csv
+*.jpg
