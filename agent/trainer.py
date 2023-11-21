@@ -22,52 +22,71 @@ class AgentTrainer:
 
     
     def calculate_features(self):
-        features = []
+
+        num_features = 11
+        features = [None] * num_features  # Pre-allocación de la lista
+
+        # Variables calculadas
         current_dollars = self.portfolio_manager.current_dollars
         max_current_dollars = self.portfolio_manager.max_current_dollars
         in_position = int(self.portfolio_manager.in_position)
-        max_current_dollars_stop_price = self.portfolio_manager.max_current_dollars * self.config.stop_price#la config del env no tiene mucho sentido puede ser movida a otroas configs y evitarnos esta
-        ratio = self.portfolio_manager.ratio_levels[self.portfolio_manager.ratio] / 10
-        stop_loss = self.portfolio_manager.stop_loss_levels[int(self.portfolio_manager.stop_loss)]
+        max_current_dollars_stop_price = self.portfolio_manager.max_current_dollars * self.config.stop_price
+        ratio = self.portfolio_manager.ratio
+        stop_loss = self.portfolio_manager.stop_loss
         bonuses = self.agent.reward_and_punishment.bonuses
         penalty = self.agent.reward_and_punishment.penalty
 
-        features.extend([self.agent.get_normalized_values(value) for value in [current_dollars, max_current_dollars, max_current_dollars_stop_price, bonuses, penalty]])
-        features.extend([in_position, ratio, stop_loss])
+        # Rellenar la lista features
+        values = [current_dollars, max_current_dollars, max_current_dollars_stop_price, bonuses, penalty]
+        normalized_values = [self.agent.get_normalized_values(value) for value in values]
+        features[:5] = normalized_values
+        features[5:8] = [in_position, ratio, stop_loss]
 
         action, _, _ = self.agent.last_action
-        features.extend(np.eye(3)[action])
+        features[8:11] = np.eye(3)[action]
+
         return features
 
 
+
     def _train_step(self, current_state, episode):
-        discrete_action, self.portfolio_manager.stop_loss, self.portfolio_manager.ratio = self.agent.exploration_explotation.choose_action(current_state, self.config.epsilon_start)
-        self.agent.exploration_explotation.validate_action([discrete_action, self.portfolio_manager.stop_loss, self.portfolio_manager.ratio])
-        action =  [discrete_action, self.portfolio_manager.stop_loss, self.portfolio_manager.ratio]
-        
-        # Store the portfolio value at the time of action
+        self.agent.portfolio_manager.signal_c=0
+        exploration_explotation = self.agent.exploration_explotation
+        reward_and_punishment = self.agent.reward_and_punishment
+        environment = self.environment
+
         portfolio_value_at_action = self.portfolio_manager.current_dollars
+        discrete_action, self.portfolio_manager.stop_loss_level, self.portfolio_manager.ratio_level = exploration_explotation.choose_action(current_state, self.config.epsilon_start)
+        
+        exploration_explotation.validate_action([discrete_action, self.portfolio_manager.stop_loss_level, self.portfolio_manager.ratio_level])
+        
+        action = [discrete_action, self.portfolio_manager.stop_loss_level, self.portfolio_manager.ratio_level]
+        self.portfolio_manager.ratio = self.portfolio_manager.ratio_levels[self.portfolio_manager.ratio_level]
+        self.portfolio_manager.stop_loss = self.portfolio_manager.stop_loss_levels[self.portfolio_manager.stop_loss_level]
+        if not self.portfolio_manager.in_position:
+            self.portfolio_manager.open_position(action)
+        elif self.portfolio_manager.in_position:
+
+            need_to_close = self.portfolio_manager.evaluate_position()
+
+            if need_to_close:
+                self.portfolio_manager.close_position()
 
         features = self.calculate_features()
         self.features_from_training.append(features)
-        self.environment.update_step_features(self.environment.current_step, features)
-
-        next_state = self.agent.update_observation(self.environment.step())
+        environment.update_step_features(environment.current_step, features)
         
-        self.portfolio_manager.evaluate_and_close_position()
-        if not self.portfolio_manager.in_position:
-            current_close_price = self.environment.current_close
-            self.agent.exploration_explotation.execute_action(action, current_close_price)
-
-        self.portfolio_manager.update_max_portfolio_value()
-
-        # Pass the stored portfolio value at action to calculate_reward
-        reward = self.agent.reward_and_punishment.calculate_reward(portfolio_value_at_action)
-        self.reward=reward
+        next_state = self.agent.update_observation(environment.step())
+        self.portfolio_manager.update_max_current_dollars()
+        
+        reward = reward_and_punishment.calculate_reward(portfolio_value_at_action)
+        self.reward = reward
         done = self.agent.is_done()
 
         self.agent.experience_replay.remember_experience(current_state, action, reward, next_state, done)
+        
         return next_state, reward, done
+
 
 
     def _update_metrics(self, reward, total_reward):
@@ -82,7 +101,6 @@ class AgentTrainer:
     def _update_losses(self):
         loss = self.agent.experience_replay.replay_experiences(self.agent.target_model, self.agent.model_manager)
         if loss is not None:
-
             self.losses_0.append(loss[0])
             self.losses_1.append(loss[1])
             self.losses_2.append(loss[2])
@@ -119,40 +137,39 @@ class AgentTrainer:
         total_reward = 0
         progress_bar = self._initialize_progress_bar()
 
-        # Initialize the plot at the start of the episode
+        self._initialize_plot_if_required(plot)
+
+        done = False
+        while not done:
+            current_state, reward, done = self._train_step_and_update_plot(current_state, episode, plot)
+            total_reward = self._update_metrics(reward, total_reward)
+            progress_bar.update()
+
+        self._finalize_training(episode, plot, progress_bar)
+
+    def _initialize_plot_if_required(self, plot):
         if plot:
             self.plot_agent.init_plot()
-        done = False
-        # En tu bucle de entrenamiento, llama a plotter justo antes de cerrar la posición
-        while not done:
-            # Ejecuta un paso de entrenamiento y obtiene el nuevo estado y la recompensa
-            current_state, reward, done = self._train_step(current_state, episode)
-            
-            # Evalúa y potencialmente cierra la posición
-            self.portfolio_manager.evaluate_and_close_position()
-            
-            # Actualiza cualquier métrica necesaria
-            total_reward = self._update_metrics(reward, total_reward)
-            
-            # Actualiza la barra de progreso
-            progress_bar.update()
-            
-            # Plotea los datos del paso actual
-            if plot:
-                self.plot_agent.plotter()
 
-        progress_bar.close()
-        # Resto del método de entrenamiento
-
-        # Reset the plot at the end of the episode
+    def _train_step_and_update_plot(self, current_state, episode, plot):
+        current_state, reward, done = self._train_step(current_state, episode)
         if plot:
-            #self.plot_agent.update_losses(episode)
-            self.plot_agent.plot_updater.plot_data()  # add this line
+            self.plot_agent.plotter(self.environment.current_step)
+        return current_state, reward, done
+
+    def _finalize_training(self, episode, plot, progress_bar):
+        progress_bar.close()
+        self._reset_portfolio_manager()
+        if plot:
+            self.plot_agent.plot_updater.plot_data()
         self._cleanup_train(episode)
         self._check_and_reset_environment_step()
         if plot:
-            
             self.plot_agent.reset()
+
+    def _reset_portfolio_manager(self):
+        self.portfolio_manager.take_profit_price = None
+        self.portfolio_manager.stop_loss_price = None
 
 
     def _initialize_progress_bar(self):
@@ -160,6 +177,7 @@ class AgentTrainer:
         return tqdm.tqdm(total=steps_this_episode, desc="Training Progress")
 
     def _check_and_reset_environment_step(self):
-        if self.environment.current_step >= self.config.max_steps - 1000:
+        if self.environment.current_step >= self.config.max_steps-1:
             self.environment.current_step = self.config.starting_step
+
 

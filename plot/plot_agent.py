@@ -6,7 +6,6 @@ import datetime
 from plot.dollar_subplot import DollarSubplot 
 from plot.text_values_subplot import TextValuesSubplot
 from plot.losses_subplot import LossesSubplot
-from plot.max_dollars_subplot import MaxDollarsSubplot
 from plot.price_subplot import PriceSubplot
 from plot.base_model import SubplotBase
 from plot.final_dollars_subplot import FinalDollarSubplot
@@ -93,12 +92,10 @@ class PlotUpdater:
         current_ts = self.env.current_ts
         stop_loss = self.portfolio_manager.stop_loss_price
         take_profit = self.portfolio_manager.take_profit_price
-        signal_o = self.env.current_close if self.portfolio_manager.signal_o != 0 else None
-        signal_c = self.env.current_close if self.portfolio_manager.signal_c != 0 else None
-        # Calculate or retrieve losses and max dollars
-        
+        signal_o = self.portfolio_manager.signal_o  # Initialize signal_o with None
+        signal_c = self.portfolio_manager.signal_c  # Initialize signal_c with None
 
-        # Update subplots with the new data
+    
         self.plot_manager.price_subplot.plot(current_ts, open, high, low, close, stop_loss, take_profit, signal_o, signal_c, step)
         self.plot_manager.dollar_subplot.plot(current_dollars, step)
         self.plot_manager.text_subplot.plot()  # This will just update the text values
@@ -129,21 +126,28 @@ class PlotUpdater:
         # Draw the new final dollar subplot
         self.update_subplot(self.plot_manager.final_dollar_subplot)
 
+        # Recalculate the limits and rescale the view
+        self.plot_manager.price_subplot.update_limits()
+        self.plot_manager.dollar_subplot.update_limits()
+        self.plot_manager.losses_subplot.update_limits()
+
         # Blit the changes to the canvas
         self.plot_manager.fig.canvas.draw()
         self.plot_manager.fig.canvas.flush_events()
 
-    def plot_data(self):
+    def plot_data(self):#esto se deberia de llamar update_plot_data o algo asi  
         self.add_data()
         self.update()
 
 class PlotAgent:
-    def __init__(self, env, portfolio_manager, agent):
+    def __init__(self, env, portfolio_manager, agent, update_frequency=1):
         self.plot_manager = PlotManager(env, portfolio_manager, agent)
         self.plot_updater = PlotUpdater(self.plot_manager, env, portfolio_manager, agent)
+        self.update_frequency = update_frequency
 
-    def plotter(self):
-        self.plot_updater.plot_data()
+    def plotter(self, step):
+        if step % self.update_frequency == 0:
+            self.plot_updater.plot_data()
 
     def reset(self):
         self.plot_manager.reset_subplots()

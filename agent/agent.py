@@ -27,7 +27,7 @@ class DQNAgent:
         self.number_of_features = self.environment.num_columns
 
         self.config = config
-
+        self.episode=0
         self.init_models(deep_model_config)
         self.init_portfolio_manager()
         self.init_reward_and_punishment()
@@ -43,12 +43,13 @@ class DQNAgent:
         self.stop_loss_levels = self.portfolio_manager.stop_loss_levels if self.portfolio_manager else None
         self.ratio_levels = self.portfolio_manager.ratio_levels if self.portfolio_manager else None
         self.max_scale_dolars=100
-        self.episode=0
+        
 
     def init_models(self, deep_model_config):
         self.deep_model_config = deep_model_config
         self.model_manager = ModelManager(self.window_size, self.action_size, self.number_of_features,
                                           self.model_path, self.deep_model_config)
+        
         self.target_model = self.model_manager.clone_model_architecture()
         self.batch_size = self.config.batch_size
         self.memory_size = self.config.memory_size
@@ -66,7 +67,6 @@ class DQNAgent:
     def init_reward_and_punishment(self):
         self.reward_and_punishment = RewardAndPunishment(self.portfolio_manager, self) 
 
-        
     def record_and_print_score(self, episode, episodes):
         # Record and print the score, and append to scores and losses lists
         print(f"Episode: {episode + 1}/{episodes}, Ending step: {self.environment.current_step}, Score: {self.portfolio_manager.current_dollars}, Reward: {self.trainer.reward}, Average Training Loss: {self.model_manager.average_losses}")
@@ -113,7 +113,7 @@ class DQNAgent:
         self.exploration_explotation.current_step = 0#revisar esto
         self.exploration_explotation.counter = 0
         
-        starting_step = random.randint(0, 5)
+        starting_step = 0
         print("Last Max on step: ", self.portfolio_manager.step_on_max_current_dollars,"max current dollars", round(self.portfolio_manager.max_current_dollars,2), "RESTART ON: ", starting_step)
         self.reset_agent() 
         current_state = self.update_observation(self.environment.reset(starting_step))

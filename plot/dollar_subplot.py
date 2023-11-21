@@ -26,7 +26,7 @@ class DollarSubplot(SubplotBase):
                     max_val += 0.05 * abs(max_val)  # Adjust max_val to 5% above itself if they are equal
                 self.ax.set_ylim(min_val, max_val)
         else:
-            self.ax.set_xlim(self.steps[0], self.steps[-1])
+            self.ax.set_xlim(1, -1)
             y_values = self.current_dollars
             if y_values:
                 min_val, max_val = min(y_values), max(y_values)
