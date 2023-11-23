@@ -66,7 +66,6 @@ class PortfolioManager:
             self.in_position = False
             self.position_type = None
             self.signal_o = 0
-
         self.last_action = action
 
 
@@ -77,7 +76,11 @@ class PortfolioManager:
         elif self.position_type == "short":
             self.stop_loss_reached = self.environment.current_high > self.stop_loss_price
             self.take_profit_reached = self.environment.current_low < self.take_profit_price
-        need_to_close = self.stop_loss_reached or self.take_profit_reached
+        tp_or_sl_reached = self.stop_loss_reached or self.take_profit_reached
+        #is_brake_even = self.is_brake_even()
+        #if is_brake_even:
+         #   print("brake even")
+        need_to_close = tp_or_sl_reached# or is_brake_even
         return need_to_close
 
     def close_position(self):
@@ -115,8 +118,6 @@ class PortfolioManager:
         return self.take_profit_price
 
     def update_current_dollars(self):
-    
-
         if self.stop_loss_reached:
             fee_rate = 0.0032  # Increased fee for a losing position
             new_dollars = self.current_dollars * (1 - self.risk_factor)
@@ -124,14 +125,51 @@ class PortfolioManager:
         elif self.take_profit_reached:
             fee_rate = 0.0018  # Reduced fee for a winning position
             new_dollars = self.current_dollars * (1 + self.risk_factor * self.ratio)
-
             self.just_closed_profitable_position = True  # The position was closed with profit
         else:
-            return   # No fee if the position is not closed
+            return self.current_dollars  # Retorna el valor actual si no se cumple ninguna condición
         new_dollars = new_dollars * (1 - fee_rate)
-        return new_dollars 
-        
+        return new_dollars
 
+    def is_brake_even(self):
+        # Define el umbral de beneficio para considerar el brake even
+        brake_even_threshold = self.stop_loss / 2  # 50% del stop loss
+        pullback_threshold = 0.005  # Umbral de retroceso
 
+        # Si no hay una posición abierta, no se realiza ninguna acción
+        if not self.in_position:
+            return False
 
+        # Calcula el cambio porcentual en el precio desde la apertura de la posición
+        current_price = self.environment.current_close
+        price_change_percentage = (current_price - self.entry_price) / self.entry_price
 
+        # Comprueba si el trade ha alcanzado el umbral de beneficio
+        if ((self.position_type == "long" and price_change_percentage >= brake_even_threshold) or
+            (self.position_type == "short" and price_change_percentage <= -brake_even_threshold)):
+
+            # Ajusta el stop loss y take profit
+            if self.position_type == "long":
+                adjusted_stop_loss = self.entry_price * (1 + pullback_threshold)
+                adjusted_take_profit = adjusted_stop_loss * self.ratio
+            else:  # Posición corta
+                adjusted_stop_loss = self.entry_price * (1 - pullback_threshold)
+                adjusted_take_profit = adjusted_stop_loss * self.ratio
+
+            # Actualiza los precios en el Portfolio Manager
+            self.stop_loss_price = adjusted_stop_loss
+            self.take_profit_price = adjusted_take_profit
+
+            # Actualiza si se ha alcanzado el stop loss o take profit
+            if self.position_type == "long":
+                self.stop_loss_reached = current_price <= adjusted_stop_loss
+                self.take_profit_reached = current_price >= adjusted_take_profit
+            else:  # Posición corta
+                self.stop_loss_reached = current_price >= adjusted_stop_loss
+                self.take_profit_reached = current_price <= adjusted_take_profit
+
+            # Devuelve True si es necesario cerrar la posición debido a que se alcanzó alguno de los umbrales
+            return self.stop_loss_reached or self.take_profit_reached
+
+        # Si el umbral de brake even no se ha alcanzado, devuelve False
+        return False

@@ -126,24 +126,22 @@ class PriceSubplot(SubplotBase):
     
 
     def reset(self):
-        #now we create a dataframe with the trades info this is entr_price, entry_ts, exit_ts, tp_trades, sl_trades
+        # Calcular cuántos trades no se han cerrado
+        excess = len(self.entry_ts) - len(self.exit_ts)
 
-        if len(self.entry_ts) > len(self.exit_ts):
-            excess = len(self.entry_ts) - len(self.exit_ts)
-            self.entry_ts = self.entry_ts[excess:]
-            self.entry_prices = self.entry_prices[excess:]
-            self.tp_trades = self.tp_trades[excess:]
-            self.sl_trades = self.sl_trades[excess:]
-            self.signals_o = self.signals_o[excess:]
- 
-        print("entryPrices", len(self.entry_prices), "entryTs", len(self.entry_ts), "exitTs", len(self.exit_ts), "tpTrades", len(self.tp_trades), "slTrades", len(self.sl_trades), "signalsO", len(self.signals_o))
-        print("entryPrices", self.entry_prices, "entryTs", self.entry_ts)
-        print("exitTs", self.exit_ts)
-        print("tpTrades", self.tp_trades) 
-        print("slTrades", self.sl_trades)
-        print("signalsO", self.signals_o)
-        df_trades=pd.DataFrame({'entryPrice':self.entry_prices,'entryTS':self.entry_ts,'exitTS':self.exit_ts,'tp':self.tp_trades,'sl':self.sl_trades, 'type':self.signals_o})
-        #now we save it as a csv file
+        if excess > 0:
+            # Eliminar los trades que están abiertos (es decir, los últimos 'excess' trades)
+            self.entry_ts = self.entry_ts[:-excess]
+            self.entry_prices = self.entry_prices[:-excess]
+            self.tp_trades = self.tp_trades[:-excess]
+            self.sl_trades = self.sl_trades[:-excess]
+            self.signals_o = self.signals_o[:-excess]
+
+      
+        # Crear DataFrame y guardarlo como antes
+        df_trades = pd.DataFrame({'entryPrice': self.entry_prices, 'entryTS': self.entry_ts, 'exitTS': self.exit_ts, 'tp': self.tp_trades, 'sl': self.sl_trades, 'type': self.signals_o})
+        
+         #now we save it as a csv file
         file_name = f'trades/trades_{self.counter}.json'
         list_of_dicts = df_trades.to_dict(orient='records')
         data_to_save = {"positions": list_of_dicts}

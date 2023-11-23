@@ -61,8 +61,6 @@ class ModelManager:
         transformer_layer = model.get_layer(transformer_layer_name)
         return transformer_layer
 
-
-
     def save_model(self):
         if self.model_path is not None:
             self.model.save(self.model_path)

@@ -35,7 +35,11 @@ class AgentTrainer:
         stop_loss = self.portfolio_manager.stop_loss
         bonuses = self.agent.reward_and_punishment.bonuses
         penalty = self.agent.reward_and_punishment.penalty
-
+        print("current_dollars:", self.portfolio_manager.current_dollars)
+        print("max_current_dollars:", self.portfolio_manager.max_current_dollars)
+        print("max_current_dollars_stop_price:", self.portfolio_manager.max_current_dollars * self.config.stop_price)
+        print("bonuses:", self.agent.reward_and_punishment.bonuses)
+        print("penalty:", self.agent.reward_and_punishment.penalty)
         # Rellenar la lista features
         values = [current_dollars, max_current_dollars, max_current_dollars_stop_price, bonuses, penalty]
         normalized_values = [self.agent.get_normalized_values(value) for value in values]
@@ -138,13 +142,15 @@ class AgentTrainer:
         progress_bar = self._initialize_progress_bar()
 
         self._initialize_plot_if_required(plot)
-
+        
         done = False
         while not done:
+            #now we update the epsilon from the exploration_explotation class
+            
             current_state, reward, done = self._train_step_and_update_plot(current_state, episode, plot)
             total_reward = self._update_metrics(reward, total_reward)
             progress_bar.update()
-
+            self.agent.exploration_explotation.update_epsilon()
         self._finalize_training(episode, plot, progress_bar)
 
     def _initialize_plot_if_required(self, plot):
@@ -165,7 +171,9 @@ class AgentTrainer:
         self._cleanup_train(episode)
         self._check_and_reset_environment_step()
         if plot:
+            self.plot_agent.save_plot()
             self.plot_agent.reset()
+            
 
     def _reset_portfolio_manager(self):
         self.portfolio_manager.take_profit_price = None

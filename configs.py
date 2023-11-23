@@ -4,7 +4,7 @@ class BaseConfig:
         self.batch_size = 128  # Tamaño del lote para el entrenamiento
         self.window_size = 32  # Tamaño de la ventana para el muestreo de datos
         self.starting_step = 0  # Paso de inicio para el entrenamiento
-        self.max_steps = 3000  # Máximo número de pasos para el entrenamiento
+        self.max_steps = 1000  # Máximo número de pasos para el entrenamiento
         #idea: podriamos hacer esto referente a una fecha(date) en vez de un numero de pasos
 
 # Configuración específica para el modelo DeepModel
@@ -13,10 +13,10 @@ class DeepModelConfig(BaseConfig):
         super().__init__()  # Hereda la configuración de la clase base
 
         # Configuraciones específicas del Transformer
-        self.attention_heads = 32
-        self.attention_key_dim = 512
-        self.attention_value_dim = 512
-        self.attention_dropout = 0.2
+        self.attention_heads = 16
+        self.attention_key_dim = 128
+        self.attention_value_dim = 128
+        self.attention_dropout = 0.3
         self.ffn_units = 64
         self.initial_learning_rate = 0.1
   

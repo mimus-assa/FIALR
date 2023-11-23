@@ -21,7 +21,7 @@ class DQNAgent:
         # Initialize agent properties
         self.environment = environment
         self.model_path = model_path
-        self.plot=True
+        self.plot=False
         self.window_size = config.window_size
         self.action_size = environment.action_space[0].n
         self.number_of_features = self.environment.num_columns

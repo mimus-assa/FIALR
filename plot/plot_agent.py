@@ -12,19 +12,17 @@ from plot.final_dollars_subplot import FinalDollarSubplot
 
 
 class EpsilonSubplot(SubplotBase):
-    def __init__(self, fig, position, epsilon_start, epsilon_end, epsilon_decay):
+    def __init__(self, fig, position, agent):
         super().__init__(fig, position)
         self.epsilon_values = []
-        self.epsilon_start = epsilon_start
-        self.epsilon_end = epsilon_end
-        self.epsilon_decay = epsilon_decay
         self.epsilon_line, = self.ax.plot([], [], color='orange', label='Epsilon')
         self.lines.append(self.epsilon_line)
         self.ax.legend()
+        self.agent=agent
 
     def plot(self, step):
         # Suponiendo que tienes un método para obtener el valor actual de epsilon en este punto
-        current_epsilon = max(self.epsilon_end, self.epsilon_start * (self.epsilon_decay ** step))
+        current_epsilon = self.agent.exploration_explotation.epsilon
         self.add_step(step)
         self.epsilon_values.append(current_epsilon)
         
@@ -33,7 +31,7 @@ class EpsilonSubplot(SubplotBase):
 
     def update_limits(self):
         # Establecer un rango fijo para el eje y ya que epsilon decay es conocido
-        self.ax.set_ylim(self.epsilon_end, max(self.epsilon_values))
+        self.ax.set_ylim(0, max(self.epsilon_values))
         
         # Asegúrate de que el eje x muestre todos los pasos
         self.ax.set_xlim(0, self.steps[-1] if self.steps else 0)
@@ -56,10 +54,7 @@ class PlotManager:
         self.final_dollar_subplot = FinalDollarSubplot(self.fig, self.gs[2, 0])
         self.text_subplot = TextValuesSubplot(self.fig, self.gs[0:, 1], agent, env, portfolio_manager)
         self.losses_subplot = LossesSubplot(self.fig, self.gs[0, 2])
-        self.epsilon_subplot = EpsilonSubplot(self.fig, self.gs[1, 2],
-                                              agent.config.epsilon_start,
-                                              agent.config.epsilon_end,
-                                              agent.config.epsilon_decay)
+        self.epsilon_subplot = EpsilonSubplot(self.fig, self.gs[1, 2], agent)
     def plot_epsilon(self, step):
         self.epsilon_subplot.plot(step)
 
@@ -72,7 +67,7 @@ class PlotManager:
 
     def save_plot(self):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.fig.savefig(f"/mnt/data/plot_{timestamp}.jpg")  # Update this path as necessary
+        self.fig.savefig(f"/home/mimus/qlearning/plot/imgs/plot_{timestamp}.jpg")  # Update this path as necessary
 
 class PlotUpdater:
     def __init__(self, plot_manager, env, portfolio_manager, agent):

@@ -68,8 +68,8 @@ class Transformer(Model):
         self.flatten = Flatten()
 
         self.dense_actions = self.create_dense_layers([256, 64, 32], "actions")
-        self.dense_stop_loss = self.create_dense_layers([32, 16, 8], "stop_loss")
-        self.dense_ratio = self.create_dense_layers([32, 16, 8], "ratio")
+        self.dense_stop_loss = self.create_dense_layers([16, 8, 4], "stop_loss")
+        self.dense_ratio = self.create_dense_layers([16, 8, 4], "ratio")
 
         self.output_actions = Dense(3, activation="softmax", kernel_initializer=GlorotUniform(), name='transformer')
         self.output_stop_loss = Dense(4, activation="softmax", kernel_initializer=GlorotUniform(), name='transformer_1')
@@ -79,7 +79,7 @@ class Transformer(Model):
         layers = []
         for unit in units:
             layers.extend([
-                Dense(unit, kernel_initializer=GlorotUniform(), kernel_regularizer=l2(0.005), name=f'dense_{unit}_{name}'),
+                Dense(unit, kernel_initializer=GlorotUniform(), kernel_regularizer=l2(0.01), name=f'dense_{unit}_{name}'),
                 LeakyReLU(name=f'leaky_relu_{unit}_{name}'),
                 BatchNormalization(name=f'batch_norm_{unit}_{name}'),
             ])

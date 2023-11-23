@@ -38,32 +38,31 @@ class ExplorationExploitation:
 
     # Define a method to choose a random action
     def choose_random_action(self):
-        
         random_number = np.random.rand()
         # Utiliza el umbral pre-calculado para decidir la acción
         if random_number <= self.hold_action_threshold:
-            action = 0  # "hold" action
-            stop_loss = 0  # Suponiendo que un nivel de stop loss de 0 es una acción de "hold"
-            ratio = 0  # Suponiendo que un nivel de ratio de 0 es una acción de "hold"
+            action_level = 0  # "hold" action
+            stop_loss_level = 0  # Suponiendo que un nivel de stop loss de 0 es una acción de "hold"
+            ratio_level = 0  # Suponiendo que un nivel de ratio de 0 es una acción de "hold"
         else:
             # De lo contrario, elige una acción aleatoria y los niveles de stop loss y ratio
-            action = random.randrange(1, self.action_size)
-            stop_loss = random.randrange(len(self.stop_loss_levels))
-            ratio = random.randrange(len(self.ratio_levels))
-        print("choose_random_action", action, stop_loss, ratio)
-        return (action, stop_loss, ratio)
+            action_level = random.randrange(1, self.action_size)
+            stop_loss_level = random.randrange(len(self.stop_loss_levels))
+            ratio_level = random.randrange(len(self.ratio_levels))
+        print("choose_random_action", action_level, stop_loss_level, ratio_level)
+        return (action_level, stop_loss_level, ratio_level)
 
     # Define a method to choose the best action based on the predict function
     def choose_best_action(self, predict_function, state):
         # Get the predicted q_values from the predict function
         q_values = predict_function(state, verbose=0)
         # Unpack q_values into discrete action, stop loss, and ratio
-        action, stop_loss, ratio = np.argmax(q_values[0]), np.argmax(q_values[1]), np.argmax(q_values[2])
-        if action == 0:
-            stop_loss = 0
-            ratio = 0
-        print("choose_best_action", "step ",self.environment.current_step, "action ",action, "sl level ",stop_loss, "ratio level",ratio)
-        return (action, stop_loss, ratio)
+        action_level, stop_loss_level, ratio_level = np.argmax(q_values[0]), np.argmax(q_values[1]), np.argmax(q_values[2])
+        if action_level == 0:
+            stop_loss_level = 0
+            ratio_level = 0
+        print("choose_best_action", "step ",self.environment.current_step, "action ",action_level, "sl level ",stop_loss_level, "ratio level",ratio_level)
+        return (action_level, stop_loss_level, ratio_level)
 
 
     def choose_action(self, state, epsilon):
@@ -79,7 +78,9 @@ class ExplorationExploitation:
     
     # Define a method to update epsilon
     def update_epsilon(self):
-        self.adjust_epsilon_start()
+        #we do this only on the step 0 of the episode
+        if self.agent.environment.current_step == 0:
+            self.adjust_epsilon_start()
         # Update the epsilon, ensuring it never goes below the epsilon_end value
         self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
 
