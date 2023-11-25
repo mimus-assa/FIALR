@@ -19,15 +19,15 @@ class BtcMarketEnv(gym.Env):
         self._initialize_environment(prices, self.config)
         # Set other properties
         self.data=data
-        self.num_columns = data.shape[1] + 11  # Add 11 for the new features, we need to search wich columns are the new features and list here in a comment
-        
+        self.extra_features = 5
+        self.num_columns = data.shape[1] + self.extra_features  
         self.window_size = config.window_size
         # Define observation space
         self.observation_space = gym.spaces.Box(low=0, high=1, shape=(self.config.batch_size, self.window_size, self.num_columns), dtype=np.float32)
         # Initialize data buffer
         self.data_buffer = np.zeros((len(self.data) + self.config.window_size, self.num_columns))
         # Fill in data buffer with data
-        self.data_buffer[:len(self.data), :-11] = self.data
+        self.data_buffer[:len(self.data), :-self.extra_features] = self.data
         # Reset environment
         self.reset(self.starting_step)
 
@@ -40,11 +40,7 @@ class BtcMarketEnv(gym.Env):
         self.starting_step = self.config.starting_step
         self.ending_step= self.starting_step + self.max_steps
         # Define action space
-        self.action_space = Tuple((
-                                    Discrete(3),  # Actions: Buy, sell, hold
-                                    Discrete(4),  # tp levels 0, 1, 2, 3
-                                    Discrete(4)  # sl levels 0, 1, 2, 3
-                                ))
+        self.action_space = Discrete(4)  # Actions: Buy, sell, hold, close
         self.current_step = self.current_ts = self.observation = None
 
     # Method to reset environment

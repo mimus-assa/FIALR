@@ -59,7 +59,6 @@ class TransformerBlock(Model):
         return cls(config_obj)
 
 
-    
 class Transformer(Model):
     def __init__(self, config):
         super(Transformer, self).__init__()
@@ -67,13 +66,11 @@ class Transformer(Model):
         self.transformer_block = TransformerBlock(config)
         self.flatten = Flatten()
 
+        # Mantenemos solo las capas relacionadas con 'actions'
         self.dense_actions = self.create_dense_layers([256, 64, 32], "actions")
-        self.dense_stop_loss = self.create_dense_layers([16, 8, 4], "stop_loss")
-        self.dense_ratio = self.create_dense_layers([16, 8, 4], "ratio")
 
-        self.output_actions = Dense(3, activation="softmax", kernel_initializer=GlorotUniform(), name='transformer')
-        self.output_stop_loss = Dense(4, activation="softmax", kernel_initializer=GlorotUniform(), name='transformer_1')
-        self.output_ratio = Dense(4, activation="softmax", kernel_initializer=GlorotUniform(), name='transformer_2')
+        # La capa de salida para 'actions'
+        self.output_actions = Dense(4, activation="softmax", kernel_initializer=GlorotUniform(), name='transformer')
 
     def create_dense_layers(self, units, name):
         layers = []
@@ -89,33 +86,28 @@ class Transformer(Model):
         x = self.transformer_block(inputs)
         x = self.flatten(x)
 
+        # Aplicamos solo las capas para 'actions'
         x_actions = self.apply_dense_layers(x, self.dense_actions)
         actions = self.output_actions(x_actions)
 
-        x_stop_loss = self.apply_dense_layers(x, self.dense_stop_loss)
-        stop_loss = self.output_stop_loss(x_stop_loss)
-
-        x_ratio = self.apply_dense_layers(x, self.dense_ratio)
-        ratio = self.output_ratio(x_ratio)
-
-        return [actions, stop_loss, ratio]
+        # Devolvemos solo la salida de 'actions'
+        return actions
 
     def apply_dense_layers(self, x, layers):
         for layer in layers:
             x = layer(x)
         return x
 
-    
+    # Actualiza las funciones get_config y from_config si es necesario
     def get_config(self):
         config = super().get_config().copy()
         config.update({
-            'config': self.config.__dict__  # convert config object to dictionary
+            'config': self.config.__dict__
         })
         return config
 
     @classmethod
     def from_config(cls, config):
-        # Create a TransformerConfig object from the 'config' dictionary
         config_obj = TransformerConfig(**config['config'])
         return cls(config_obj)
 

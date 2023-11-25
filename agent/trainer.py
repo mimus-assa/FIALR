@@ -12,18 +12,16 @@ class AgentTrainer:
         self.portfolio_manager = agent.portfolio_manager
         self.agent.reset_agent()
         self.losses_0 = []
-        self.losses_1 = []
-        self.losses_2 = []
-        self.total_losses = []
         self.plot_agent = PlotAgent(self.environment, self.portfolio_manager, self.agent)  # initialize the PlotAgent
         self.reward=0
         self.features_from_training=[]
-        
+        self.exploration_explotation = self.agent.exploration_explotation
+        self.reward_and_punishment = self.agent.reward_and_punishment
 
     
     def calculate_features(self):
 
-        num_features = 11
+        num_features = 5
         features = [None] * num_features  # Pre-allocación de la lista
 
         # Variables calculadas
@@ -31,23 +29,17 @@ class AgentTrainer:
         max_current_dollars = self.portfolio_manager.max_current_dollars
         in_position = int(self.portfolio_manager.in_position)
         max_current_dollars_stop_price = self.portfolio_manager.max_current_dollars * self.config.stop_price
-        ratio = self.portfolio_manager.ratio
-        stop_loss = self.portfolio_manager.stop_loss
-        bonuses = self.agent.reward_and_punishment.bonuses
-        penalty = self.agent.reward_and_punishment.penalty
         print("current_dollars:", self.portfolio_manager.current_dollars)
         print("max_current_dollars:", self.portfolio_manager.max_current_dollars)
         print("max_current_dollars_stop_price:", self.portfolio_manager.max_current_dollars * self.config.stop_price)
-        print("bonuses:", self.agent.reward_and_punishment.bonuses)
-        print("penalty:", self.agent.reward_and_punishment.penalty)
         # Rellenar la lista features
-        values = [current_dollars, max_current_dollars, max_current_dollars_stop_price, bonuses, penalty]
+        values = [current_dollars, max_current_dollars, max_current_dollars_stop_price]
         normalized_values = [self.agent.get_normalized_values(value) for value in values]
-        features[:5] = normalized_values
-        features[5:8] = [in_position, ratio, stop_loss]
-
-        action, _, _ = self.agent.last_action
-        features[8:11] = np.eye(3)[action]
+        features[0] = normalized_values[0]
+        features[1] = normalized_values[1]
+        features[2] = in_position
+        features[3] = normalized_values[2]
+        features[4] = self.agent.last_action
 
         return features
 
@@ -55,40 +47,32 @@ class AgentTrainer:
 
     def _train_step(self, current_state, episode):
         self.agent.portfolio_manager.signal_c=0
-        exploration_explotation = self.agent.exploration_explotation
-        reward_and_punishment = self.agent.reward_and_punishment
-        environment = self.environment
-
+        
         portfolio_value_at_action = self.portfolio_manager.current_dollars
-        discrete_action, self.portfolio_manager.stop_loss_level, self.portfolio_manager.ratio_level = exploration_explotation.choose_action(current_state, self.config.epsilon_start)
-        
-        exploration_explotation.validate_action([discrete_action, self.portfolio_manager.stop_loss_level, self.portfolio_manager.ratio_level])
-        
-        action = [discrete_action, self.portfolio_manager.stop_loss_level, self.portfolio_manager.ratio_level]
-        self.portfolio_manager.ratio = self.portfolio_manager.ratio_levels[self.portfolio_manager.ratio_level]
-        self.portfolio_manager.stop_loss = self.portfolio_manager.stop_loss_levels[self.portfolio_manager.stop_loss_level]
+        action = self.exploration_explotation.choose_action(current_state, self.config.epsilon_start)
+        self.exploration_explotation.validate_action(action)
+        print("checa esta action", action)
+
         if not self.portfolio_manager.in_position:
-            self.portfolio_manager.open_position(action)
+            if action in [self.agent.LONG, self.agent.SHORT]:
+                self.portfolio_manager.open_position(action)
         elif self.portfolio_manager.in_position:
-
-            need_to_close = self.portfolio_manager.evaluate_position()
-
-            if need_to_close:
+            if action==self.agent.CLOSE:
                 self.portfolio_manager.close_position()
 
         features = self.calculate_features()
         self.features_from_training.append(features)
-        environment.update_step_features(environment.current_step, features)
+        self.environment.update_step_features(self.environment.current_step, features)#esto podemos modificarlo tambien en enviroment para que no use el feature
         
-        next_state = self.agent.update_observation(environment.step())
+        next_state = self.agent.update_observation(self.environment.step())
         self.portfolio_manager.update_max_current_dollars()
         
-        reward = reward_and_punishment.calculate_reward(portfolio_value_at_action)
+        reward = self.reward_and_punishment.calculate_reward(portfolio_value_at_action)
         self.reward = reward
         done = self.agent.is_done()
 
         self.agent.experience_replay.remember_experience(current_state, action, reward, next_state, done)
-        
+        self.agent.last_action = action
         return next_state, reward, done
 
 
@@ -105,10 +89,8 @@ class AgentTrainer:
     def _update_losses(self):
         loss = self.agent.experience_replay.replay_experiences(self.agent.target_model, self.agent.model_manager)
         if loss is not None:
-            self.losses_0.append(loss[0])
-            self.losses_1.append(loss[1])
-            self.losses_2.append(loss[2])
-            self.total_losses.append(loss[3])
+            self.losses_0.append(loss)
+
 
 
     def _update_model(self):
@@ -125,7 +107,7 @@ class AgentTrainer:
         self.agent.experience_replay.clean_memory()
 
     def _update_average_losses(self):
-        average_losses = [self._calculate_average_loss(loss_list) for loss_list in [self.total_losses, self.losses_0, self.losses_1, self.losses_2]]
+        average_losses = [self._calculate_average_loss(loss_list) for loss_list in [self.losses_0]]
         self.agent.model_manager.average_losses = average_losses  
          
 
@@ -133,7 +115,7 @@ class AgentTrainer:
         return np.mean(loss_list) if len(loss_list) > 0 else None
 
     def _clear_losses(self):
-        for loss_list in [self.total_losses, self.losses_0, self.losses_1, self.losses_2]:
+        for loss_list in [self.losses_0]:
             loss_list.clear()
 
     def train(self, episode, plot=True):

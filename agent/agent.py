@@ -13,9 +13,10 @@ import random
 # Define the DQNAgent class
 class DQNAgent:
     # Define action types
+    HOLD = 0
     LONG = 1
     SHORT = 2
-    HOLD = 0
+    CLOSE = 3
 
     def __init__(self, environment, model_path=None, deep_model_config=None, config=None):
         # Initialize agent properties
@@ -23,7 +24,7 @@ class DQNAgent:
         self.model_path = model_path
         self.plot=False
         self.window_size = config.window_size
-        self.action_size = environment.action_space[0].n
+        self.action_size = environment.action_space.n
         self.number_of_features = self.environment.num_columns
 
         self.config = config
@@ -40,8 +41,6 @@ class DQNAgent:
 
         # Set trainer and other initial parameters
         self.trainer = AgentTrainer(self)
-        self.stop_loss_levels = self.portfolio_manager.stop_loss_levels if self.portfolio_manager else None
-        self.ratio_levels = self.portfolio_manager.ratio_levels if self.portfolio_manager else None
         self.max_scale_dolars=100
         
 
@@ -59,7 +58,7 @@ class DQNAgent:
     def init_exploration_exploitation(self):
         self.experience_replay = ExperienceReplay(self)
         self.exploration_explotation = ExplorationExploitation(self)
-        self.last_action = (self.HOLD ,self.portfolio_manager.stop_loss_levels[0],self.portfolio_manager.ratio_levels[0])
+        self.last_action = self.HOLD 
 
     def init_portfolio_manager(self):
         self.portfolio_manager = PortfolioManager(self.config, self)
@@ -120,22 +119,18 @@ class DQNAgent:
         return current_state
 
 
-    
-    def update_observation(self, state):
-        state[-1, -11] = self.get_normalized_values(self.portfolio_manager.current_dollars)
-        state[-1, -10] = self.get_normalized_values(self.portfolio_manager.max_current_dollars)
-        state[-1, -9] = int(self.portfolio_manager.in_position)
-        state[-1, -8] = self.get_normalized_values(self.portfolio_manager.max_current_dollars * self.config.stop_price)
-        state[-1, -7] = self.portfolio_manager.ratio/100
-    
-
-        state[-1, -6] = self.portfolio_manager.stop_loss_levels[int(self.portfolio_manager.stop_loss)]/100
- 
         
-        state[-1, -5] = self.get_normalized_values(self.reward_and_punishment.bonuses)
-        state[-1, -4] = self.get_normalized_values(self.reward_and_punishment.penalty)
-        action, _, _ = self.last_action
-        state[-1, -3:] = np.eye(3)[action]
+    def update_observation(self, state):
+        # Actualiza con los valores actuales de dólares y los máximos dólares actuales
+        state[-1, -5] = self.get_normalized_values(self.portfolio_manager.current_dollars)
+        state[-1, -4] = self.get_normalized_values(self.portfolio_manager.max_current_dollars)
+        # Incluye un indicador de si actualmente está en posición
+        state[-1, -3] = int(self.portfolio_manager.in_position)
+        # Normaliza y actualiza el precio de stop
+        state[-1, -2] = self.get_normalized_values(self.portfolio_manager.max_current_dollars * self.config.stop_price)
+        # Actualiza la acción como un valor único en lugar de un vector one-hot
+        print("last action", self.last_action)
+        state[-1, -1] = self.last_action  # Aquí asumimos que action es un valor numérico. Si no, necesitarás convertirlo.
         return state
 
     def get_normalized_values(self, value):

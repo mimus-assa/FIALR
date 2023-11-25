@@ -1,10 +1,10 @@
 # Clase base para la configuración, define parámetros comunes para todas las configuraciones
 class BaseConfig:
     def __init__(self):
-        self.batch_size = 128  # Tamaño del lote para el entrenamiento
+        self.batch_size = 20  # Tamaño del lote para el entrenamiento
         self.window_size = 32  # Tamaño de la ventana para el muestreo de datos
         self.starting_step = 0  # Paso de inicio para el entrenamiento
-        self.max_steps = 1000  # Máximo número de pasos para el entrenamiento
+        self.max_steps = 100  # Máximo número de pasos para el entrenamiento
         #idea: podriamos hacer esto referente a una fecha(date) en vez de un numero de pasos
 
 # Configuración específica para el modelo DeepModel
@@ -21,7 +21,7 @@ class DeepModelConfig(BaseConfig):
         self.initial_learning_rate = 0.1
   
         self.clipnorm = 1.0
-        self.input_dim=20
+        self.input_dim=14
         
 # Configuración específica para el ambiente de mercado de Bitcoin
 class BtcMarketEnvConfig(BaseConfig):
@@ -34,8 +34,8 @@ class AgentConfig(BaseConfig):
     def __init__(self):
         super().__init__()  # Hereda la configuración de la clase base
         #for the model 
-        self.memory_size = 256 # Tamaño de la memoria del agente
-        self.episodes = 100  # Número de episodios para el entrenamiento
+        self.memory_size = 25 # Tamaño de la memoria del agente
+        self.episodes = 1  # Número de episodios para el entrenamiento
         self.epsilon_start = 0.1  # Valor inicial de epsilon para la exploración
         self.epsilon_end = 0.0001  # Valor final de epsilon para la exploración
         self.epsilon_decay = 0.98  # Tasa de decaimiento para epsilon

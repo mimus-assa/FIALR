@@ -26,14 +26,11 @@ class ModelManager:
         initial_learning_rate = self.config.initial_learning_rate
         optimizer = tf.keras.optimizers.Nadam(learning_rate=initial_learning_rate, clipnorm=self.config.clipnorm)
         
-        # Define losses for each output
-        losses = {
-            "transformer": tf.keras.losses.CategoricalCrossentropy(from_logits=False),
-            "transformer_1": tf.keras.losses.CategoricalCrossentropy(from_logits=False),
-            "transformer_2": tf.keras.losses.CategoricalCrossentropy(from_logits=False),
-        }
+        # Define la pérdida solo para la salida de 'actions'
+        losses = {"transformer": tf.keras.losses.CategoricalCrossentropy(from_logits=False)}
         model.compile(loss=losses, optimizer=optimizer)
         return model
+    
 
     def _update_weights(self, target_weights, online_weights, tau):
         for i in range(len(target_weights)):
@@ -44,16 +41,14 @@ class ModelManager:
         transformer_layer = self._get_transformer_layer(self.model)
         target_transformer_layer = self._get_transformer_layer(target_model.model)
 
-        for layer_name in ['transformer', 'transformer_1', 'transformer_2']:
-            try:
-                online_weights = transformer_layer.get_layer(layer_name).get_weights()
-                target_weights = target_transformer_layer.get_layer(layer_name).get_weights()
+        # Actualiza solo los pesos de la capa 'transformer'
+        online_weights = transformer_layer.get_layer('transformer').get_weights()
+        target_weights = target_transformer_layer.get_layer('transformer').get_weights()
 
-                updated_weights = self._update_weights(target_weights, online_weights, tau)
+        updated_weights = self._update_weights(target_weights, online_weights, tau)
 
-                target_transformer_layer.get_layer(layer_name).set_weights(updated_weights)
-            except ValueError as e:
-                print(f"Layer {layer_name} does not exist.")
+        target_transformer_layer.get_layer('transformer').set_weights(updated_weights)
+
 
     def _get_transformer_layer(self, model):
         # Get the transformer layer's name from the model
@@ -72,8 +67,6 @@ class ModelManager:
 
     def clone_model_architecture(self):
         new_model = ModelManager(self.window_size, self.action_size, self.number_of_features, config=self.config)
-        # Set weights for each output layer in the new model
+        # Clona solo los pesos de la salida de 'actions'
         new_model.model.layers[-1].get_layer('transformer').set_weights(self.model.layers[-1].get_layer('transformer').get_weights())
-        new_model.model.layers[-1].get_layer('transformer_1').set_weights(self.model.layers[-1].get_layer('transformer_1').get_weights())
-        new_model.model.layers[-1].get_layer('transformer_2').set_weights(self.model.layers[-1].get_layer('transformer_2').get_weights())
         return new_model

@@ -36,16 +36,15 @@ class ExperienceReplay:
         # Separate out states, actions, rewards, next_states, dones
         states = tf.constant([ex[0] for ex in batch], dtype=tf.float32)
 
-        discrete_actions = tf.constant([ex[1][0] for ex in batch], dtype=tf.float32)
-        stop_losses = tf.constant([ex[1][1] for ex in batch], dtype=tf.float32)
-        ratios = tf.constant([ex[1][2] for ex in batch], dtype=tf.float32)
+        discrete_actions = tf.constant([ex[1] for ex in batch], dtype=tf.float32)
+
 
         rewards = [float(ex[2]) if isinstance(ex[2], np.ndarray) else ex[2] for ex in batch]
         rewards = tf.constant(rewards, dtype=tf.float32)
         next_states = tf.constant([ex[3] for ex in batch], dtype=tf.float32)
         dones = tf.constant([float(ex[4]) for ex in batch], dtype=tf.float32)
 
-        return states, discrete_actions, stop_losses, ratios, rewards, next_states, dones
+        return states, discrete_actions, rewards, next_states, dones
 
     # Method to clean memory
     def clean_memory(self):
@@ -57,32 +56,21 @@ class ExperienceReplay:
         # Get predictions for next states
         next_state_values = target_model.model.predict_on_batch(next_states)
 
-        targets = []
-        for i, output_size in enumerate([3, 4, 4]):  # The sizes of the model's outputs
-            # Select the predictions for the current output
-            next_state_values_i = next_state_values[i]
+        # Adjust next_state_values based on rewards and dones
+        # Por ejemplo, podrías hacer algo como:
+        # next_state_values = rewards + (1 - dones) * self.gamma * next_state_values.max(axis=1)
+        # Pero necesitas definir 'self.gamma' (factor de descuento) en alguna parte de tu clase
 
-            # Compute the indices of maximum target values for the current output
-            max_target_indices = np.argmax(next_state_values_i, axis=1)
-
-            # Create target tensor filled with zeros
-            target = np.zeros((next_state_values_i.shape[0], output_size))
-
-            # Update the target value only for the action taken
-            target[np.arange(next_state_values_i.shape[0]), max_target_indices] = 1
-            
-            targets.append(target)
-        
-        return targets
+        return next_state_values
 
     # Method to update deep model
     def update_deep_model(self, states, actions, targets, deep_model, target_action_probabilities):
-        # Convert targets to a list of three elements (actions, stop_loss, ratio)
-        target = [tf.constant(t) for t in targets]
-        # Train the model with the current state and target
-        result = deep_model.model.train_on_batch(states, target)
-        
+        # Asegúrate de que 'targets' es un tensor de la forma correcta
+        # No es necesario convertirlo en una lista de tensores, ya que tu modelo espera un solo target
+        result = deep_model.model.train_on_batch(states, targets)
+
         return result
+
 
     # Method to replay experiences
     def replay_experiences(self, target_model, deep_model):
@@ -91,8 +79,8 @@ class ExperienceReplay:
         
         if experiences is None:
             return None
-        states, discrete_actions, stop_losses, ratios, rewards, next_states, dones = experiences
-        actions = [discrete_actions, stop_losses, ratios]
+        states, discrete_actions, rewards, next_states, dones = experiences
+        actions = discrete_actions
 
         # Get probabilities of target actions
         target_action_probabilities = deep_model.model.predict_on_batch(states)

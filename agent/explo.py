@@ -10,11 +10,9 @@ class ExplorationExploitation:
         self.environment = agent.environment
         self.portfolio_manager = agent.portfolio_manager
         # Define the number of possible actions based on the agent's environment
-        self.action_size = agent.environment.action_space[0].n
+        self.action_size = agent.environment.action_space.n
         # Define a list of stop loss levels
-        self.stop_loss_levels = agent.portfolio_manager.stop_loss_levels
         # Define a list of ratio levels
-        self.ratio_levels = agent.portfolio_manager.ratio_levels
         # Initialize the exploration probability (epsilon) from the agent's config
         self.epsilon = agent.config.epsilon_start
         # Define the end value for the epsilon from the agent's config
@@ -42,35 +40,24 @@ class ExplorationExploitation:
         # Utiliza el umbral pre-calculado para decidir la acción
         if random_number <= self.hold_action_threshold:
             action_level = 0  # "hold" action
-            stop_loss_level = 0  # Suponiendo que un nivel de stop loss de 0 es una acción de "hold"
-            ratio_level = 0  # Suponiendo que un nivel de ratio de 0 es una acción de "hold"
         else:
             # De lo contrario, elige una acción aleatoria y los niveles de stop loss y ratio
             action_level = random.randrange(1, self.action_size)
-            stop_loss_level = random.randrange(len(self.stop_loss_levels))
-            ratio_level = random.randrange(len(self.ratio_levels))
-        print("choose_random_action", action_level, stop_loss_level, ratio_level)
-        return (action_level, stop_loss_level, ratio_level)
+        return action_level
 
     # Define a method to choose the best action based on the predict function
     def choose_best_action(self, predict_function, state):
         # Get the predicted q_values from the predict function
         q_values = predict_function(state, verbose=0)
         # Unpack q_values into discrete action, stop loss, and ratio
-        action_level, stop_loss_level, ratio_level = np.argmax(q_values[0]), np.argmax(q_values[1]), np.argmax(q_values[2])
-        if action_level == 0:
-            stop_loss_level = 0
-            ratio_level = 0
-        print("choose_best_action", "step ",self.environment.current_step, "action ",action_level, "sl level ",stop_loss_level, "ratio level",ratio_level)
-        return (action_level, stop_loss_level, ratio_level)
+        action_level = np.argmax(q_values[0])
+        print("choose_best_action", "step ",self.environment.current_step, "action ",action_level)
+        return action_level
 
 
     def choose_action(self, state, epsilon):
         state_reshaped = np.reshape(state, (1, state.shape[0], state.shape[1]))
-        if self.agent.portfolio_manager.in_position:
-            #print("in position so no model")
-            action = (self.agent.HOLD, 0 , 0)
-        elif self.should_explore(epsilon):
+        if self.should_explore(epsilon):
             action = self.choose_random_action()
         else:
             action = self.choose_best_action(self.agent.model_manager.model.predict, state_reshaped)
