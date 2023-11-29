@@ -1,5 +1,5 @@
 from plot.base_model import SubplotBase
-
+import numpy as np
 
 class DollarSubplot(SubplotBase):
     def __init__(self, fig, position):
@@ -11,34 +11,32 @@ class DollarSubplot(SubplotBase):
         self.ax.legend()
 
     def update_limits(self):
-        if len(self.steps) > 1:  # Asegúrate de que hay al menos dos pasos para establecer límites
+        # Establecer límites del eje X
+        limit = 100
+        if len(self.steps) > limit:
+            self.ax.set_xlim(self.steps[-limit], self.steps[-1])
+        elif len(self.steps) > 1:
             self.ax.set_xlim(self.steps[0], self.steps[-1])
-        # Set the limits of the x-axis and y-axis
-        if len(self.steps) > 30:
-            self.ax.set_xlim(self.steps[-30], self.steps[-1])
-            
-            # Set the y-axis limits to show a bit more space above and below the max and min
-            y_values = self.current_dollars[-30:]
-            if y_values:
-                min_val, max_val = min(y_values), max(y_values)
-                if min_val == max_val:  # Avoid having a flat line by expanding the limits slightly
-                    min_val -= 0.05 * abs(max_val)  # Adjust min_val to 5% below max_val if they are equal
-                    max_val += 0.05 * abs(max_val)  # Adjust max_val to 5% above itself if they are equal
-                self.ax.set_ylim(min_val, max_val)
         else:
-            self.ax.set_xlim(1, -1)
-            y_values = self.current_dollars
-            if y_values:
-                min_val, max_val = min(y_values), max(y_values)
-                if min_val == max_val:
-                    min_val -= 0.05 * abs(max_val)
-                    max_val += 0.05 * abs(max_val)
-                self.ax.set_ylim(min_val, max_val)
-        
-        self.ax.relim()  # Recalculate the limits based on the current data
-        self.ax.autoscale_view()  # Rescale the view to the new limits
+            x_min = self.steps[0] - 0.5 if self.steps else -0.5
+            x_max = self.steps[0] + 0.5 if self.steps else 1.5
+            self.ax.set_xlim(x_min, x_max)
+
+        # Establecer límites del eje Y
+        y_values = self.current_dollars[-limit:] if len(self.steps) > limit else self.current_dollars
+        y_values = [y for y in y_values if not np.isnan(y)]
+        if y_values:
+            min_val, max_val = np.nanmin(y_values), np.nanmax(y_values)
+            self.ax.set_ylim(min_val - 30, max_val + 30)  # Establecer límites a ±100 del rango de y_values
+        else:
+            self.ax.set_ylim(-30, 30)  # Valores predeterminados si no hay datos
+
+        self.ax.relim()
+        self.ax.autoscale_view()
 
     def plot(self, current_dollars, step):
+        # Asegúrate de que esta línea se ejecute en el momento adecuado
+       # print(f"Último debug - Plotting current dollars: {current_dollars} at step: {step}")
         self.add_step(step)
         self.current_dollars.append(current_dollars)
         self.dollars_line.set_data(self.steps, self.current_dollars)

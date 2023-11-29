@@ -85,13 +85,13 @@ class PlotUpdater:
         episode = self.agent.episode
         current_dollars = self.portfolio_manager.current_dollars
         current_ts = self.env.current_ts
-        stop_loss = self.portfolio_manager.stop_loss_price
-        take_profit = self.portfolio_manager.take_profit_price
         signal_o = self.portfolio_manager.signal_o  # Initialize signal_o with None
         signal_c = self.portfolio_manager.signal_c  # Initialize signal_c with None
-
-    
-        self.plot_manager.price_subplot.plot(current_ts, open, high, low, close, stop_loss, take_profit, signal_o, signal_c, step)
+        #talves asignar las variables en cada subplot sea mejor que hacerlo aqui
+        #if signal_c != 0:
+          # print(f"Debug on plot agent - Adding close marker at step: {step}, {signal_c}")
+        self.plot_manager.price_subplot.plot(current_ts, open, high, low, close, signal_o, signal_c, step)
+      #  print(f"Último debug - Updating plot for current dollars: {current_dollars} at step: {step}")
         self.plot_manager.dollar_subplot.plot(current_dollars, step)
         self.plot_manager.text_subplot.plot()  # This will just update the text values
         self.plot_manager.plot_epsilon(step)
@@ -99,9 +99,9 @@ class PlotUpdater:
         if end_of_episode:
             final_dollar = self.portfolio_manager.current_dollars
             episode_number = self.agent.episode
-            losses_0, losses_1, losses_2 = self.agent.trainer.losses_0, self.agent.trainer.losses_1, self.agent.trainer.losses_2
+            losses_0= self.agent.trainer.losses_0
             self.plot_manager.final_dollar_subplot.plot(final_dollar, episode_number)
-            self.plot_manager.losses_subplot.plot(losses_0, losses_1, losses_2, episode)
+            self.plot_manager.losses_subplot.plot(losses_0, episode)
             
 
     def update_subplot(self, subplot):
@@ -141,8 +141,7 @@ class PlotAgent:
         self.update_frequency = update_frequency
 
     def plotter(self, step):
-        if step % self.update_frequency == 0:
-            self.plot_updater.plot_data()
+        self.plot_updater.plot_data()
 
     def reset(self):
         self.plot_manager.reset_subplots()

@@ -28,15 +28,64 @@ class RewardAndPunishment:
 
 
     # Method to calculate reward
-    def calculate_reward(self, previous_dollars):
+    def calculate_pnl(self):
+        
 
-
-        # Calculate profit/loss as a percentage of the previous dollars
-        profit_loss = self.portfolio.current_dollars - previous_dollars
-    
-
+        # Calculate profit/loss as a percentage of the previous dollars 
+        if self.portfolio.position_type == "long":   
+            profit_loss = self.portfolio.position_size*(self.agent.environment.current_close - self.portfolio.entry_price)/self.portfolio.entry_price
+        elif self.portfolio.position_type == "short":
+            profit_loss = -(self.portfolio.position_size*(self.agent.environment.current_close - self.portfolio.entry_price)/self.portfolio.entry_price)
+        else:
+            profit_loss = 0
         # Calculate total reward
         reward = profit_loss 
+       
+        return reward 
+    #
+    def update_pnl(self):
+            fee_rate = 0.0032
 
+            # Calcula el PnL con el precio de entrada y el precio actual
+            if self.position_type == "long":
+                pnl = self.position_size * (self.environment.current_close - self.entry_price) / self.entry_price
+            elif self.position_type == "short":
+                pnl = -(self.position_size * (self.environment.current_close - self.entry_price) / self.entry_price)
+            else:
+                pnl = 0
+            return pnl - (self.current_dollars * fee_rate)
+
+
+
+
+    def calculate_unrealized_pnl(self):
+        upnl = self.calculate_pnl()
+        if upnl<-5:
+             return -2.5
+        elif upnl<-10:
+            return -5
+        elif upnl<-15:
+            return -7.5
+        elif upnl<-20:
+            return -10
+        elif upnl<-25:
+            return -12.5
+        else:
+            return 0
+     
+
+
+    def calculate_reward(self, pnl):
+        profit = self.agent.portfolio_manager.pnl_for_reward
+        
+        if self.agent.portfolio_manager.in_position:
+            upnl = self.calculate_unrealized_pnl()
+        else:
+            upnl = 0
+        reward = profit + upnl*0.001
+    #    print("on the reward","profit ",profit, "upnl", upnl,  "reward ",reward,  "total reward", self.agent.trainer.reward, "current dollars", self.agent.portfolio_manager.current_dollars)
+        #print("reward: ", reward,"step: ", self.agent.environment.current_step)
         return reward
+
+
 

@@ -48,7 +48,6 @@ class DQNAgent:
         self.deep_model_config = deep_model_config
         self.model_manager = ModelManager(self.window_size, self.action_size, self.number_of_features,
                                           self.model_path, self.deep_model_config)
-        
         self.target_model = self.model_manager.clone_model_architecture()
         self.batch_size = self.config.batch_size
         self.memory_size = self.config.memory_size
@@ -68,15 +67,15 @@ class DQNAgent:
 
     def record_and_print_score(self, episode, episodes):
         # Record and print the score, and append to scores and losses lists
-        print(f"Episode: {episode + 1}/{episodes}, Ending step: {self.environment.current_step}, Score: {self.portfolio_manager.current_dollars}, Reward: {self.trainer.reward}, Average Training Loss: {self.model_manager.average_losses}")
+        print(f"Episode: {episode + 1}/{episodes}, Ending step: {self.environment.current_step}, Score: {self.portfolio_manager.current_dollars}, Reward: {self.trainer.reward},Max current dollars: {round(self.portfolio_manager.max_current_dollars,2)} ,Average Training Loss: {self.model_manager.average_losses}")
         self.scores.append(self.portfolio_manager.current_dollars)
         self.losses.append(self.model_manager.average_losses)
 
-    def is_bellow_threshold(self):
+    def is_bellow_threshold(self):#creo que esto deberia irse al portfolio manager
         # Check if current dollars are below the stop price
         return self.portfolio_manager.current_dollars <= self.config.stop_price * self.portfolio_manager.max_current_dollars
     
-    def is_out_of_time(self):
+    def is_out_of_time(self):#y este deberia irse al environment
         # Check if current step is beyond the ending step
         return self.environment.current_step > self.environment.ending_step
 
@@ -89,8 +88,8 @@ class DQNAgent:
         for episode in range(self.config.episodes):
             self.episode=episode
             
-            self.trainer.train(episode, plot=self.plot)
-            self.exploration_explotation.update_epsilon()
+            self.trainer.train(episode)
+            self.exploration_explotation.update_epsilon()#esto talves deberia ir al trainer
         self.model_manager.save_model()
 
     def reset_agent(self):
@@ -108,12 +107,11 @@ class DQNAgent:
         self.target_model = self.model_manager.clone_model_architecture()
         self.model_manager = self.model_manager
         self.episode_rewards = self.episode_rewards
-        self.batch_losses = self.batch_losses
-        self.exploration_explotation.current_step = 0#revisar esto
-        self.exploration_explotation.counter = 0
+        #self.batch_losses = self.batch_losses#esto lo removi porque creo que no sirve para nada
+        #self.exploration_explotation.counter = 0
         
         starting_step = 0
-        print("Last Max on step: ", self.portfolio_manager.step_on_max_current_dollars,"max current dollars", round(self.portfolio_manager.max_current_dollars,2), "RESTART ON: ", starting_step)
+        #print("max current dollars", round(self.portfolio_manager.max_current_dollars,2))
         self.reset_agent() 
         current_state = self.update_observation(self.environment.reset(starting_step))
         return current_state
@@ -129,8 +127,8 @@ class DQNAgent:
         # Normaliza y actualiza el precio de stop
         state[-1, -2] = self.get_normalized_values(self.portfolio_manager.max_current_dollars * self.config.stop_price)
         # Actualiza la acción como un valor único en lugar de un vector one-hot
-        print("last action", self.last_action)
         state[-1, -1] = self.last_action  # Aquí asumimos que action es un valor numérico. Si no, necesitarás convertirlo.
+        
         return state
 
     def get_normalized_values(self, value):
