@@ -22,7 +22,7 @@ class DQNAgent:
         # Initialize agent properties
         self.environment = environment
         self.model_path = model_path
-        self.plot=False
+        self.plot=True
         self.window_size = config.window_size
         self.action_size = environment.action_space.n
         self.number_of_features = self.environment.num_columns
@@ -68,6 +68,7 @@ class DQNAgent:
     def record_and_print_score(self, episode, episodes):
         # Record and print the score, and append to scores and losses lists
         print(f"Episode: {episode + 1}/{episodes}, Ending step: {self.environment.current_step}, Score: {self.portfolio_manager.current_dollars}, Reward: {self.trainer.reward},Max current dollars: {round(self.portfolio_manager.max_current_dollars,2)} ,Average Training Loss: {self.model_manager.average_losses}")
+        
         self.scores.append(self.portfolio_manager.current_dollars)
         self.losses.append(self.model_manager.average_losses)
 
@@ -114,11 +115,14 @@ class DQNAgent:
         #print("max current dollars", round(self.portfolio_manager.max_current_dollars,2))
         self.reset_agent() 
         current_state = self.update_observation(self.environment.reset(starting_step))
+       # print("current state en el setup for training", current_state.shape)
         return current_state
 
 
         
     def update_observation(self, state):
+        #print("shape del state en el update_observation", state.shape)
+      #  print(f"step: {self.environment.current_step} Valor de self.last_action antes de actualizar el estado: {self.last_action}")
         # Actualiza con los valores actuales de dólares y los máximos dólares actuales
         state[-1, -5] = self.get_normalized_values(self.portfolio_manager.current_dollars)
         state[-1, -4] = self.get_normalized_values(self.portfolio_manager.max_current_dollars)

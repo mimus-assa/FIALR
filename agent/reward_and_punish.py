@@ -25,7 +25,7 @@ class RewardAndPunishment:
         self.death_penalty = 0
         self.patience_bonus = 0  # Initialize patience bonus
         self.steps_since_last_trade = 0  
-
+        self.upnl = 0
 
     # Method to calculate reward
     def calculate_pnl(self):
@@ -59,32 +59,45 @@ class RewardAndPunishment:
 
 
     def calculate_unrealized_pnl(self):
-        upnl = self.calculate_pnl()
-        if upnl<-5:
-             return -2.5
-        elif upnl<-10:
-            return -5
-        elif upnl<-15:
-            return -7.5
-        elif upnl<-20:
-            return -10
-        elif upnl<-25:
-            return -12.5
-        else:
-            return 0
+        # Obtener el PnL no realizado de PortfolioManager
+        upnl = self.portfolio.get_pnl()
+
+        # Definir los rangos y las penalizaciones correspondientes
+        pnl_ranges = [(-25, -12.5), (-20, -10), (-15, -7.5), (-10, -5), (-5, -2.5)]
+        
+        # Iterar a través de los rangos para determinar la penalización adecuada
+        for threshold, penalty in pnl_ranges:
+            if upnl < threshold:
+                return penalty
+
+        # Devolver 0 si no se cumple ninguna condición
+        return 0
+
      
 
 
-    def calculate_reward(self, pnl):
-        profit = self.agent.portfolio_manager.pnl_for_reward
-        
-        if self.agent.portfolio_manager.in_position:
-            upnl = self.calculate_unrealized_pnl()
+    def calculate_reward(self):
+        # Utilizar los valores almacenados de pnl y fee del PortfolioManager
+        if self.agent.last_action == self.agent.CLOSE:
+            profit = self.portfolio.last_pnl
+            fee = self.portfolio.last_fee
         else:
-            upnl = 0
-        reward = profit + upnl*0.001
-    #    print("on the reward","profit ",profit, "upnl", upnl,  "reward ",reward,  "total reward", self.agent.trainer.reward, "current dollars", self.agent.portfolio_manager.current_dollars)
-        #print("reward: ", reward,"step: ", self.agent.environment.current_step)
+            profit = 0
+            fee = 0
+        
+        # Calcula la recompensa total
+        reward = profit - fee
+
+        # Actualiza el PnL no realizado solo si estamos en posición
+        self.upnl = self.calculate_unrealized_pnl() if self.portfolio.in_position else 0
+
+        
+
+        # Incluir el PnL no realizado con un factor en la recompensa
+        reward += self.upnl * 0.001
+
+        # Imprimir información de depuración si es necesario
+       # print("step", self.agent.environment.current_step, "reward", reward, "profit", profit, "upnl", self.upnl, "fee", fee)
         return reward
 
 

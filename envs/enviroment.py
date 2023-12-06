@@ -20,16 +20,22 @@ class BtcMarketEnv(gym.Env):
         # Set other properties
         self.data=data
         self.extra_features = 5
-        self.num_columns = data.shape[1] + self.extra_features  
+        self.num_columns = data.shape[3] + self.extra_features  
         self.window_size = config.window_size
         # Define observation space
         self.observation_space = gym.spaces.Box(low=0, high=1, shape=(self.config.batch_size, self.window_size, self.num_columns), dtype=np.float32)
-        # Initialize data buffer
-        self.data_buffer = np.zeros((len(self.data) + self.config.window_size, self.num_columns))
-        # Fill in data buffer with data
-        self.data_buffer[:len(self.data), :-self.extra_features] = self.data
+        self.data_buffer = np.zeros((len(self.data), self.data[0].shape[1], self.data[0].shape[2] + self.extra_features))
+        #print("checa aqui", self.data_buffer.shape)
+        self._fill_data_buffer()
         # Reset environment
         self.reset(self.starting_step)
+
+    def _fill_data_buffer(self):
+        # Rellenar los primeros len(self.data) elementos de data_buffer con self.data
+        for i in range(len(self.data)):
+            #print("shape of the data for the data buffer", self.data[i].shape)
+            # Asegurar que las dimensiones coinciden
+            self.data_buffer[i, :self.data[i].shape[1], :self.data[i].shape[2]] = self.data[i][0, :, :]
 
     # Method to initialize environment
     def _initialize_environment(self,  prices,  config):
@@ -56,18 +62,19 @@ class BtcMarketEnv(gym.Env):
         self.data_buffer = np.roll(self.data_buffer, shift=-self.config.max_steps, axis=0)
         # Get next observation
         self.observation = self._get_next_observation() 
+      #  print("shape of the observation on reset from env", self.observation.shape)
         return self.observation
 
     # Method to get next observation
     def _get_next_observation(self):
         start = self.current_step % self.config.max_steps
-        end = start + self.config.window_size
-        obs = self.data_buffer[start:end]
+        obs = self.data_buffer[start:start+1, :self.window_size, :]  # Obtener una sola secuencia de observación
         return obs
 
     # Method to update step features
     def update_step_features(self, step, features):
-        self.data_buffer[step, -len(features):] = features
+        self.data_buffer[step, :, -len(features):] = features
+
 
     # Method to update prices and timestamps
     def update_prices_and_ts(self, o, h, l, c, ts):

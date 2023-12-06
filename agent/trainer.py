@@ -36,44 +36,65 @@ class AgentTrainer:
         return features
 
     def _train_step(self, current_state, episode):
-        self.portfolio_manager.signal_c=0
+        # Configuración inicial
+        self.portfolio_manager.signal_c = 0
         self.portfolio_manager.signal_o = 0
-        self.agent.portfolio_manager.pnl_for_reward=0
-        if self.environment.current_step == self.config.max_steps-1:
+        self.portfolio_manager.fee = 0
+        self.portfolio_manager.pnl = 0
+
+        self.agent.portfolio_manager.pnl_for_reward = 0
+
+        # Decidir la acción a tomar
+        if self.environment.current_step == self.config.max_steps:
             action = self.agent.CLOSE
         else:
             action = self.exploration_explotation.choose_action(current_state, self.config.epsilon_start)
+         # Imprimir el log antes de actualizar el entorno
+        self.reward += self.reward_and_punishment.calculate_reward()
+        # Ejecutar la acción seleccionada y actualizar la posición
         if not self.portfolio_manager.in_position:
             if action in [self.agent.LONG, self.agent.SHORT]:
                 self.portfolio_manager.open_position(action)
         elif self.portfolio_manager.in_position:
             if action == self.agent.CLOSE:
                 self.portfolio_manager.close_position()
+
+        # Registrar la acción actual
+        self.agent.last_action = action
+
+       
+
+        #print("current step, current close, entry price, current dollars, action, position, position type, reward, total reward, profit, unrealized pnl")
+      #  print(self.environment.current_step, self.environment.current_close, self.portfolio_manager.entry_price, self.portfolio_manager.current_dollars, self.agent.last_action, self.portfolio_manager.in_position, self.portfolio_manager.position_type, reward, self.reward, self.agent.portfolio_manager.pnl_for_reward, self.agent.reward_and_punishment.upnl)
         features = self.calculate_features()
         self.features_from_training.append(features)
         self.environment.update_step_features(self.environment.current_step, features)
-        next_state = self.agent.update_observation(self.environment.step())
         self.portfolio_manager.update_max_current_dollars()
-        self.agent.last_action = action
-        reward = self.reward_and_punishment.calculate_reward(self.agent.portfolio_manager.pnl_for_reward)
-        self.reward += reward  # Acumula la recompensa
-     #   print("step", self.agent.environment.current_step, "reward", reward , "total reward", self.reward)
-        done = self.agent.is_done()
-        self.agent.experience_replay.remember_experience(current_state, action, reward, next_state, done)
+         
+    
         if self.plot:
             self.plot_agent.plotter(self.environment.current_step)
 
-        return next_state, reward, done
+        next_state = self.agent.update_observation(self.environment.step())
+        done = self.agent.is_done()
+        self.agent.experience_replay.remember_experience(current_state, self.agent.last_action, self.reward, next_state, done)
+        
+        # Retornar el estado siguiente, la recompensa y la bandera de terminado
+        return next_state, self.reward, done
+
 
 
 
     def _update_metrics(self, reward, total_reward):
         self.agent.episode_rewards.append(reward)
         total_reward += self.reward 
-        if len(self.agent.experience_replay.memory) > self.config.batch_size:
-            self._update_losses()
-            self._update_model()
+
+        # Actualizar las pérdidas y el modelo después de cada paso
+        self._update_losses()
+        self._update_model()
+
         return total_reward
+
 
 
     def _update_losses(self):
@@ -94,7 +115,7 @@ class AgentTrainer:
         self.agent.record_and_print_score(episode, self.config.episodes)
         self.agent.episode_rewards.clear()
 
-        self.agent.experience_replay.clean_memory()
+       # self.agent.experience_replay.clean_memory()
 
     def _update_average_losses(self):
         average_losses = [self._calculate_average_loss(loss_list) for loss_list in [self.losses_0]]
@@ -112,7 +133,7 @@ class AgentTrainer:
         if self.plot:
             self.plot_agent.reset()  # Reiniciar gráficos para el nuevo episodio
         current_state = self.agent.setup_for_training(episode)
-        total_reward = 0
+        self.total_reward = 0
         self.reward = 0
         progress_bar = self._initialize_progress_bar()
         if self.plot:
@@ -121,7 +142,7 @@ class AgentTrainer:
         done = False
         while not done:           
             current_state, reward, done = self._train_step(current_state, episode)
-            total_reward = self._update_metrics(reward, total_reward)
+            self.total_reward = self._update_metrics(reward, self.total_reward)
             progress_bar.update()
             self.agent.exploration_explotation.update_epsilon()
 

@@ -11,21 +11,20 @@ class ExplorationExploitation:
         self.portfolio_manager = agent.portfolio_manager
         # Define the number of possible actions based on the agent's environment
         self.action_size = agent.environment.action_space.n
-        # Define a list of stop loss levels
-        # Define a list of ratio levels
+
         # Initialize the exploration probability (epsilon) from the agent's config
         self.epsilon = agent.config.epsilon_start
         # Define the end value for the epsilon from the agent's config
         self.epsilon_end = agent.config.epsilon_end
         # Define the rate at which epsilon will decay from the agent's config
         self.epsilon_decay = agent.config.epsilon_decay
-        self.hold_action_threshold = 0.5
+        self.hold_action_threshold = 0.3
         self.adjust_epsilon_start()
 
     def adjust_epsilon_start(self):
         # Calcula la base del decaimiento exponencial
         # Queremos que en el último episodio, epsilon sea epsilon_start / 5
-        b = (1/30) ** (1 / (self.agent.config.episodes - 1))
+        b = (1/300) ** (1 / (self.agent.config.episodes - 1))
 
         # Calcula el factor de reducción exponencial
         reduction_factor = b ** self.agent.episode
@@ -63,14 +62,18 @@ class ExplorationExploitation:
 
 
     def choose_action(self, state, epsilon):
-        state_reshaped = np.reshape(state, (1, state.shape[0], state.shape[1]))
+        state_reshaped = np.reshape(state, (1, state.shape[1], state.shape[2]))
+        
         if self.should_explore(epsilon):
+            
             action = self.choose_random_action()
-        #    print("random acction, step: ", self.environment.current_step, "action: ", action)
-
+           # print("random action", action)
         else:
             action = self.choose_best_action(self.agent.model_manager.model.predict, state_reshaped)
+           # print("best action", action)
         return action
+
+
     
     # Define a method to update epsilon
     def update_epsilon(self):

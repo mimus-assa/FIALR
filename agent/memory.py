@@ -6,90 +6,75 @@ import os
 
 # Define the ExperienceReplay class
 class ExperienceReplay:
-    # Initialize the class with an agent
     def __init__(self, agent):
-        # Set memory size and batch size from agent
-        self.memory_size = agent.memory_size
-        self.batch_size = agent.batch_size
-        # Initialize memory and next_index
-        self.memory = [None] * self.memory_size
-        self.next_index = 0
+        self.current_experience = None
 
-    # Method to remember experience
     def remember_experience(self, current_state, action, reward, next_state, done):
-        # Save experience in memory
-        self.memory[self.next_index] = (current_state, action, reward, next_state, done) # action is now a list
-        # Update next_index
-        self.next_index = (self.next_index + 1) % self.memory_size
+        # Solo se guarda la experiencia más reciente
+        self.current_experience = (current_state, action, reward, next_state, done)
 
-    # Method to sample experiences
     def sample_experiences(self):
-        # Remove None values from memory
-        valid_memory = [m for m in self.memory if m is not None]
-        # Return None if not enough valid memories
-        if len(valid_memory) < self.batch_size:
+        # Se devuelve la experiencia actual si existe
+        return self.current_experience if self.current_experience is not None else None
+
+    def replay_experiences(self, target_model, deep_model):
+        experience = self.sample_experiences()
+
+        if experience is None:
             return None
-        # Randomly select indices
-        indices = np.random.choice(len(valid_memory), self.batch_size, replace=False)
-        # Get batch from memories
-        batch = [valid_memory[idx] for idx in indices]
-        # Separate out states, actions, rewards, next_states, dones
-        states = tf.constant([ex[0] for ex in batch], dtype=tf.float32)
 
-        discrete_actions = tf.constant([ex[1] for ex in batch], dtype=tf.float32)
+        # Descomposición de la experiencia
+        state, action, reward, next_state, done = experience
+
+        # Comprueba si algún elemento de la experiencia es None individualmente
+        if state is None or action is None or reward is None or next_state is None or done is None:
+            print("Experiencia incompleta o incorrecta.")
+            return None
+
+        # Convertir a tensores
+        state = tf.constant(state, dtype=tf.float32)
+        action = tf.constant(action, dtype=tf.float32)
+        reward = tf.constant(reward, dtype=tf.float32)
+        next_state = tf.constant(next_state, dtype=tf.float32)
+        done = tf.constant(done, dtype=tf.float32)
 
 
-        rewards = [float(ex[2]) if isinstance(ex[2], np.ndarray) else ex[2] for ex in batch]
-        rewards = tf.constant(rewards, dtype=tf.float32)
-        next_states = tf.constant([ex[3] for ex in batch], dtype=tf.float32)
-        dones = tf.constant([float(ex[4]) for ex in batch], dtype=tf.float32)
+        # Calcular el target (esto depende de cómo esté definido tu target_model)
+        target = self.compute_targets(reward, next_state, done, target_model)
 
-        return states, discrete_actions, rewards, next_states, dones
+        # Actualizar el modelo
+        loss = self.update_deep_model(state, action, target, deep_model)
+
+        return loss
+
 
     # Method to clean memory
     def clean_memory(self):
-        self.memory = [None] * self.memory_size
-        self.next_index = 0
+        # Restablecer la experiencia actual a None
+        self.current_experience = None
 
     # Method to compute targets
     def compute_targets(self, rewards, next_states, dones, target_model):
-        # Get predictions for next states
+        # Asegúrate de que next_states tenga la forma correcta
+        next_states = np.expand_dims(next_states, axis=0) if next_states.ndim == 2 else next_states
+
+        # Obtén las predicciones para los siguientes estados
         next_state_values = target_model.model.predict_on_batch(next_states)
 
-        # Adjust next_state_values based on rewards and dones
+        # Ajusta next_state_values basado en las recompensas y dones
         # Por ejemplo, podrías hacer algo como:
         # next_state_values = rewards + (1 - dones) * self.gamma * next_state_values.max(axis=1)
         # Pero necesitas definir 'self.gamma' (factor de descuento) en alguna parte de tu clase
 
         return next_state_values
 
-    # Method to update deep model
-    def update_deep_model(self, states, actions, targets, deep_model, target_action_probabilities):
-        # Asegúrate de que 'targets' es un tensor de la forma correcta
-        # No es necesario convertirlo en una lista de tensores, ya que tu modelo espera un solo target
-        result = deep_model.model.train_on_batch(states, targets)
 
+    # Method to update deep model
+    def update_deep_model(self, states, actions, targets, deep_model):
+        # Asegúrate de que states tenga la forma correcta
+        states = np.expand_dims(states, axis=0) if states.ndim == 2 else states
+        targets = np.expand_dims(targets, axis=0) if targets.ndim == 1 else targets
+        result = deep_model.model.train_on_batch(states, targets)
         return result
 
 
-    # Method to replay experiences
-    def replay_experiences(self, target_model, deep_model):
-        # Sample experiences
-        experiences = self.sample_experiences()
-        
-        if experiences is None:
-            return None
-        states, discrete_actions, rewards, next_states, dones = experiences
-        actions = discrete_actions
-
-        # Get probabilities of target actions
-        target_action_probabilities = deep_model.model.predict_on_batch(states)
-
-        target_action_probabilities = [tf.convert_to_tensor(tap) for tap in target_action_probabilities]
-
-        # Compute targets
-        targets = self.compute_targets(rewards, next_states, dones, target_model)
-        # Update deep model
-        loss = self.update_deep_model(states, actions, targets, deep_model, target_action_probabilities)
-
-        return loss

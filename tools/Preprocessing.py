@@ -60,7 +60,21 @@ class Preprocessing:
         test_num = test_num.values
         
         return train_num, val_num, test_num, train_num_df, val_num_df, test_num_df
+        
+    def create_sequences(self, data: np.ndarray, seq_len: int, batch_size: int) -> np.ndarray:
+        sequences = []
+        for i in range(0, len(data) - seq_len + 1, batch_size):
+            batch = data[i:i + batch_size * seq_len]
+            if len(batch) < batch_size * seq_len:
+                # Manejar el último lote si es más pequeño que batch_size
+                continue  # Opcional: Puedes decidir cómo manejar este caso
+            batch = batch.reshape((batch_size, seq_len, -1))
+            sequences.append(batch)
+        return np.array(sequences)
+
     
+
+
     def process_data(self, file: str) -> Tuple[np.ndarray, List[np.ndarray], pd.Series]:
         X_0 = self.load_data(file, self.cols)
 
@@ -77,15 +91,18 @@ class Preprocessing:
         X_0 = X_0[cols]
 
         train_0, _, _, _, _, _ = self.data_splitting(X_0)
+        # En el método process_data, llamar a create_sequences con el tamaño de lote
+        train_0 = self.create_sequences(train_0, self.seq_len, self.batch_size)
 
         c_prices_train, _, _, _, _, _ = self.data_splitting(c_prices)
         o_prices_train, _, _, _, _, _ = self.data_splitting(o_prices)
         h_prices_train, _, _, _, _, _ = self.data_splitting(h_prices)
         l_prices_train, _, _, _, _, _ = self.data_splitting(l_prices)
-
         ts_train, _, _, _, _, _ = self.data_splitting(ts)
-        train_prices = [o_prices_train, h_prices_train, l_prices_train, c_prices_train, ts_train]
 
+        train_prices = [o_prices_train, h_prices_train, l_prices_train, c_prices_train, ts_train]
+        print(train_0.shape)
         return train_0, train_prices
+
     
     

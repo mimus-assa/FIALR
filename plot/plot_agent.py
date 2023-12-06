@@ -31,12 +31,17 @@ class EpsilonSubplot(SubplotBase):
 
     def update_limits(self):
         # Establecer un rango fijo para el eje y ya que epsilon decay es conocido
-        self.ax.set_ylim(0, max(self.epsilon_values))
-        
+        self.ax.set_ylim(0, max(self.epsilon_values) * 1.1)  # Añadir un poco de espacio extra arriba
+
         # Asegúrate de que el eje x muestre todos los pasos
-        self.ax.set_xlim(0, self.steps[-1] if self.steps else 0)
+        x_min = 0
+        x_max = max(self.steps[-1] if self.steps else 1.5, 1.5)  # Asegurarse de que x_max es al menos 1.5
+        self.ax.set_xlim(x_min, x_max)
+
+        # Recalcular y reajustar los límites del gráfico basados en los nuevos datos
         self.ax.relim()
         self.ax.autoscale_view()
+
 
     def reset(self):
         super().reset()

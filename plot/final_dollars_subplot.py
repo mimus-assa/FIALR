@@ -28,20 +28,18 @@ class FinalDollarSubplot(SubplotBase):
 
 
     def update_limits(self):
-        # Establecer un rango mínimo para el eje y para evitar escalas extrañas con pocos datos.
+        # Establecer un rango dinámico para el eje y para visualizar mejor las variaciones.
         y_min = np.min(self.final_dollars) if self.final_dollars else 0
         y_max = np.max(self.final_dollars) if self.final_dollars else 1
-        y_range = y_max - y_min
-        if y_range < 1:  # Establecer un rango mínimo de 1 si los datos están muy cerca entre sí.
-            y_avg = (y_max + y_min) / 2
-            y_min = y_avg - 0.5
-            y_max = y_avg + 0.5
+        y_buffer = 0.05 * (y_max - y_min) if (y_max - y_min) > 0 else 0.5
+        y_min -= y_buffer
+        y_max += y_buffer
         self.ax.set_ylim(y_min, y_max)
 
-        if len(self.episodes) > 1:
-            self.ax.set_xlim(0, len(self.episodes) + 1)
-        else:
-            self.ax.set_xlim(-0.5, 1.5)
+        # Ajustar el eje x para evitar advertencias al tener límites idénticos.
+        x_min = 0
+        x_max = max(len(self.episodes) + 1, 1.5)  # Asegurarse de que x_max es al menos 1.5 para evitar límites idénticos.
+        self.ax.set_xlim(x_min, x_max)
 
 
 

@@ -17,26 +17,39 @@ class LossesSubplot(SubplotBase):
         y_max = None
         for losses in [self.losses_0]:
             if losses:
-                if y_min is None or np.min(losses) < y_min:
-                    y_min = np.min(losses)
-                if y_max is None or np.max(losses) > y_max:
-                    y_max = np.max(losses)
+                current_min = np.min(losses)
+                current_max = np.max(losses)
+           #     print("Valores actuales de losses:", losses)
+           #     print("Mínimo actual:", current_min, "Máximo actual:", current_max)
+
+                if y_min is None or current_min < y_min:
+                    y_min = current_min
+                if y_max is None or current_max > y_max:
+                    y_max = current_max
+
+       # print("y_min antes de la corrección:", y_min)
+       # print("y_max antes de la corrección:", y_max)
+
         if y_min is None:
             y_min = 0
         if y_max is None:
             y_max = 1
+
         y_range = y_max - y_min
         if y_range < 1:  # Establecer un rango mínimo de 1 si los datos están muy cerca entre sí.
             y_avg = (y_max + y_min) / 2
             y_min = y_avg - 0.5
             y_max = y_avg + 0.5
+
+        #print("y_min después de la corrección:", y_min)
+        #print("y_max después de la corrección:", y_max)
+
         self.ax.set_ylim(y_min, y_max)
 
         if len(self.episodes) > 1:
             self.ax.set_xlim(0, len(self.episodes) + 1)
         else:
             self.ax.set_xlim(-0.5, 1.5)
-
 
 
     def plot(self, loss_0,  episode):

@@ -11,6 +11,7 @@ def main():
     preprocess_config = PreprocessingConfig()
     preprocess = Preprocessing(preprocess_config)
     train_0, train_prices = preprocess.process_data(preprocess_config.file) 
+
     config = DeepModelConfig()
     env_config = BtcMarketEnvConfig()
     agent_config = AgentConfig()
