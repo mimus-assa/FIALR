@@ -36,21 +36,25 @@ class AgentTrainer:
         return features
 
     def _train_step(self, current_state, episode):
+        #print("current_state shape", current_state.shape)
         # Configuración inicial
         self.portfolio_manager.signal_c = 0
         self.portfolio_manager.signal_o = 0
         self.portfolio_manager.fee = 0
         self.portfolio_manager.pnl = 0
 
-        self.agent.portfolio_manager.pnl_for_reward = 0
-
+        current_reward = 0
         # Decidir la acción a tomar
-        if self.environment.current_step == self.config.max_steps:
+        # Decidir la acción a tomar
+        if self.environment.current_step == self.config.max_steps-1:
             action = self.agent.CLOSE
+        elif self.environment.current_step in [i for i in range(0,self.config.window_size)]:
+            action = self.agent.HOLD
         else:
             action = self.exploration_explotation.choose_action(current_state, self.config.epsilon_start)
-         # Imprimir el log antes de actualizar el entorno
-        self.reward += self.reward_and_punishment.calculate_reward()
+
+        current_reward = self.reward_and_punishment.calculate_reward()
+        self.reward += current_reward
         # Ejecutar la acción seleccionada y actualizar la posición
         if not self.portfolio_manager.in_position:
             if action in [self.agent.LONG, self.agent.SHORT]:
@@ -64,8 +68,6 @@ class AgentTrainer:
 
        
 
-        #print("current step, current close, entry price, current dollars, action, position, position type, reward, total reward, profit, unrealized pnl")
-      #  print(self.environment.current_step, self.environment.current_close, self.portfolio_manager.entry_price, self.portfolio_manager.current_dollars, self.agent.last_action, self.portfolio_manager.in_position, self.portfolio_manager.position_type, reward, self.reward, self.agent.portfolio_manager.pnl_for_reward, self.agent.reward_and_punishment.upnl)
         features = self.calculate_features()
         self.features_from_training.append(features)
         self.environment.update_step_features(self.environment.current_step, features)
@@ -76,11 +78,12 @@ class AgentTrainer:
             self.plot_agent.plotter(self.environment.current_step)
 
         next_state = self.agent.update_observation(self.environment.step())
+       # print("shape of the next state", next_state.shape)
         done = self.agent.is_done()
-        self.agent.experience_replay.remember_experience(current_state, self.agent.last_action, self.reward, next_state, done)
+        self.agent.experience_replay.remember_experience(current_state, self.agent.last_action, current_reward, next_state, done)
         
         # Retornar el estado siguiente, la recompensa y la bandera de terminado
-        return next_state, self.reward, done
+        return next_state, current_reward, done
 
 
 
@@ -98,7 +101,7 @@ class AgentTrainer:
 
 
     def _update_losses(self):
-        loss = self.agent.experience_replay.replay_experiences(self.agent.target_model, self.agent.model_manager)
+        loss = self.agent.experience_replay.replay_experiences(self.agent.batch_size ,self.agent.target_model, self.agent.model_manager, 0.99)
         if loss is not None:
             self.losses_0.append(loss)
 

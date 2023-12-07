@@ -26,7 +26,7 @@ class DQNAgent:
         self.window_size = config.window_size
         self.action_size = environment.action_space.n
         self.number_of_features = self.environment.num_columns
-
+        self.feature_history = np.zeros((self.window_size, 5)) # Asumiendo que window_size es tu tamaño de secuencia
         self.config = config
         self.episode=0
         self.init_models(deep_model_config)
@@ -55,7 +55,7 @@ class DQNAgent:
         self.losses = []    
         
     def init_exploration_exploitation(self):
-        self.experience_replay = ExperienceReplay(self)
+        self.experience_replay = ExperienceReplay(self.memory_size)
         self.exploration_explotation = ExplorationExploitation(self)
         self.last_action = self.HOLD 
 
@@ -85,6 +85,8 @@ class DQNAgent:
         return self.is_bellow_threshold() or self.is_out_of_time()
 
     def train_agent(self):
+        self.trainer.reward = 0
+       # print("Iniciando el entrenamiento del agente...")
         # Train agent for a given number of episodes
         for episode in range(self.config.episodes):
             self.episode=episode
@@ -92,6 +94,7 @@ class DQNAgent:
             self.trainer.train(episode)
             self.exploration_explotation.update_epsilon()#esto talves deberia ir al trainer
         self.model_manager.save_model()
+        #print("Entrenamiento del agente completado.")
 
     def reset_agent(self):
         self.portfolio_manager.current_dollars = self.portfolio_manager.original_initial_dollars
@@ -121,19 +124,24 @@ class DQNAgent:
 
         
     def update_observation(self, state):
-        #print("shape del state en el update_observation", state.shape)
-      #  print(f"step: {self.environment.current_step} Valor de self.last_action antes de actualizar el estado: {self.last_action}")
-        # Actualiza con los valores actuales de dólares y los máximos dólares actuales
-        state[-1, -5] = self.get_normalized_values(self.portfolio_manager.current_dollars)
-        state[-1, -4] = self.get_normalized_values(self.portfolio_manager.max_current_dollars)
-        # Incluye un indicador de si actualmente está en posición
-        state[-1, -3] = int(self.portfolio_manager.in_position)
-        # Normaliza y actualiza el precio de stop
-        state[-1, -2] = self.get_normalized_values(self.portfolio_manager.max_current_dollars * self.config.stop_price)
-        # Actualiza la acción como un valor único en lugar de un vector one-hot
-        state[-1, -1] = self.last_action  # Aquí asumimos que action es un valor numérico. Si no, necesitarás convertirlo.
-        
+        # Mueve los valores históricos un paso adelante en la secuencia
+        self.feature_history[:-1] = self.feature_history[1:]
+
+        # Actualiza el registro histórico con los valores más recientes
+        self.feature_history[-1] = [
+            self.get_normalized_values(self.portfolio_manager.current_dollars),
+            self.get_normalized_values(self.portfolio_manager.max_current_dollars),
+            int(self.portfolio_manager.in_position),
+            self.get_normalized_values(self.portfolio_manager.max_current_dollars * self.config.stop_price),
+            self.last_action
+        ]
+
+        # Actualiza el estado con los valores históricos
+        for i in range(self.window_size):
+            state[0, i, -5:] = self.feature_history[i]
+        #print(state)
         return state
+
 
     def get_normalized_values(self, value):
         initial_dollars = self.portfolio_manager.original_initial_dollars

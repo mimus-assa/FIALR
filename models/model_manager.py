@@ -12,7 +12,6 @@ class ModelManager:
         self.model_path = model_path
         self.config = config if config is not None else DeepModelConfig()
         self.batch_size = self.config.batch_size
-        self.average_losses= [None, None, None, None]
         if model_path is not None and os.path.isfile(model_path):
             self.model = self.load_model()
         else:

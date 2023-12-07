@@ -61,15 +61,11 @@ class Preprocessing:
         
         return train_num, val_num, test_num, train_num_df, val_num_df, test_num_df
         
-    def create_sequences(self, data: np.ndarray, seq_len: int, batch_size: int) -> np.ndarray:
+    def create_sequences(self, data: np.ndarray, seq_len: int) -> np.ndarray:
         sequences = []
-        for i in range(0, len(data) - seq_len + 1, batch_size):
-            batch = data[i:i + batch_size * seq_len]
-            if len(batch) < batch_size * seq_len:
-                # Manejar el último lote si es más pequeño que batch_size
-                continue  # Opcional: Puedes decidir cómo manejar este caso
-            batch = batch.reshape((batch_size, seq_len, -1))
-            sequences.append(batch)
+        for i in range(len(data) - seq_len + 1):
+            sequence = data[i:i + seq_len]
+            sequences.append(sequence)
         return np.array(sequences)
 
     
@@ -77,7 +73,7 @@ class Preprocessing:
 
     def process_data(self, file: str) -> Tuple[np.ndarray, List[np.ndarray], pd.Series]:
         X_0 = self.load_data(file, self.cols)
-
+        print("Datos cargados, iniciando el procesamiento...")
         c_prices = X_0['c']
         o_prices = X_0['o']
         h_prices = X_0['h']
@@ -92,7 +88,7 @@ class Preprocessing:
 
         train_0, _, _, _, _, _ = self.data_splitting(X_0)
         # En el método process_data, llamar a create_sequences con el tamaño de lote
-        train_0 = self.create_sequences(train_0, self.seq_len, self.batch_size)
+        train_0 = self.create_sequences(train_0, self.seq_len)
 
         c_prices_train, _, _, _, _, _ = self.data_splitting(c_prices)
         o_prices_train, _, _, _, _, _ = self.data_splitting(o_prices)
@@ -102,6 +98,7 @@ class Preprocessing:
 
         train_prices = [o_prices_train, h_prices_train, l_prices_train, c_prices_train, ts_train]
         print(train_0.shape)
+        print("Procesamiento de datos completado.")
         return train_0, train_prices
 
     

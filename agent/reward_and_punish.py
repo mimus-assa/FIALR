@@ -77,6 +77,7 @@ class RewardAndPunishment:
 
 
     def calculate_reward(self):
+        reward = 0
         # Utilizar los valores almacenados de pnl y fee del PortfolioManager
         if self.agent.last_action == self.agent.CLOSE:
             profit = self.portfolio.last_pnl
@@ -97,7 +98,7 @@ class RewardAndPunishment:
         reward += self.upnl * 0.001
 
         # Imprimir información de depuración si es necesario
-       # print("step", self.agent.environment.current_step, "reward", reward, "profit", profit, "upnl", self.upnl, "fee", fee)
+        #print("step", self.agent.environment.current_step, "reward", reward, "profit", profit, "upnl", self.upnl, "fee", fee)
         return reward
 
 
